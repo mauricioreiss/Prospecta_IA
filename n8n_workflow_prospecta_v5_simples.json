@@ -1,0 +1,171 @@
+{
+  "name": "Prospecta IA - Envio WhatsApp v5 (Funcional)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prospecta-oduo-entrada",
+        "options": {}
+      },
+      "id": "webhook-entrada",
+      "name": "Webhook Entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "prospecta-oduo-entrada"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.body.url_chatwoot }}/api/v1/accounts/{{ $json.body.account_id }}/conversations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $json.body.token_chatwoot }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source_id\": \"+55{{ $json.body.phone_number }}\",\n  \"inbox_id\": {{ $json.body.inbox_id }}\n}",
+        "options": {}
+      },
+      "id": "criar-conversa",
+      "name": "Criar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook Entrada').item.json.body.url_chatwoot }}/api/v1/accounts/{{ $('Webhook Entrada').item.json.body.account_id }}/conversations/{{ $json.id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $('Webhook Entrada').item.json.body.token_chatwoot }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $('Webhook Entrada').item.json.body.mensagem, message_type: 'outgoing' }) }}",
+        "options": {}
+      },
+      "id": "enviar-mensagem",
+      "name": "Enviar Mensagem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [690, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook Entrada').item.json.body.url_chatwoot }}/api/v1/accounts/{{ $('Webhook Entrada').item.json.body.account_id }}/conversations/{{ $('Criar Conversa').item.json.id }}/labels",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "={{ $('Webhook Entrada').item.json.body.token_chatwoot }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"labels\": [\n    \"{{ $('Webhook Entrada').item.json.body.tag_campanha }}\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "coloca-tag",
+      "name": "Coloca Tag",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"conversation_id\": {{ $('Criar Conversa').item.json.id }},\n  \"message_id\": {{ $('Enviar Mensagem').item.json.id }}\n}",
+        "options": {}
+      },
+      "id": "resposta",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Entrada": {
+      "main": [
+        [
+          {
+            "node": "Criar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Enviar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Coloca Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coloca Tag": {
+      "main": [
+        [
+          {
+            "node": "Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "prospecta-v5-funcional",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "prospecta-ia"
+  },
+  "tags": [
+    {
+      "name": "prospecta-ia"
+    }
+  ]
+}

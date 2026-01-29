@@ -1,0 +1,255 @@
+{
+  "name": "Prospecta IA - Envio 2 Msgs (Corrigido)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prospecta-oduo-entrada",
+        "options": {}
+      },
+      "id": "d560f801-e508-495a-8bac-bf3ac4a6da80",
+      "name": "Webhook Entrada1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "prospecta-oduo-entrada"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.body.url_chatwoot }}/api/v1/accounts/1/contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: 'Lead +55' + $json.body.phone_number, phone_number: '+55' + $json.body.phone_number, inbox_id: 366 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "criar-contato",
+      "name": "Criar Contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook Entrada1').item.json.body.url_chatwoot }}/api/v1/accounts/1/contacts/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Webhook Entrada1').item.json.body.phone_number }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "buscar-contato",
+      "name": "Buscar Contato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook Entrada1').item.json.body.url_chatwoot }}/api/v1/accounts/1/conversations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source_id: $('Webhook Entrada1').item.json.body.phone_number, inbox_id: 366, contact_id: $json.payload[0].id, status: 'open' }) }}",
+        "options": {}
+      },
+      "id": "criar-conversa",
+      "name": "Criar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook Entrada1').item.json.body.url_chatwoot }}/api/v1/accounts/1/conversations/{{ $json.id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $('Webhook Entrada1').item.json.body.mensagem, message_type: 'outgoing' }) }}",
+        "options": {}
+      },
+      "id": "enviar-msg1",
+      "name": "Enviar MSG1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "espera-3s",
+      "name": "Wait 3s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "webhookId": "espera-msg2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook Entrada1').item.json.body.url_chatwoot }}/api/v1/accounts/1/conversations/{{ $('Criar Conversa').item.json.id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $('Webhook Entrada1').item.json.body.mensagem2, message_type: 'outgoing' }) }}",
+        "options": {}
+      },
+      "id": "enviar-msg2",
+      "name": "Enviar MSG2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Entrada1": {
+      "main": [
+        [
+          {
+            "node": "Criar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Contato": {
+      "main": [
+        [
+          {
+            "node": "Buscar Contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Contato": {
+      "main": [
+        [
+          {
+            "node": "Criar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Enviar MSG1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar MSG1": {
+      "main": [
+        [
+          {
+            "node": "Wait 3s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3s": {
+      "main": [
+        [
+          {
+            "node": "Enviar MSG2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "duas-msgs-v3-corrigido",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33738330930e3881dd5571eca013f36ddf8aab20e4ea5c1f2ebaf4a2b4668ac6"
+  },
+  "tags": []
+}

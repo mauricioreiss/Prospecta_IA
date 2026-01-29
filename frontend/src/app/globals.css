@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles for 40+ demographic */
+:root {
+  --font-size-base: 18px;
+  --button-min-height: 52px;
+  --card-padding: 24px;
+}
+
+body {
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  color: #1E293B;
+  background-color: #F8FAFC;
+}
+
+/* Large, easy-to-tap buttons */
+.btn {
+  @apply min-h-[52px] px-6 py-3 rounded-lg font-medium transition-colors;
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-primary {
+  @apply bg-accent text-white hover:bg-accent-hover;
+  @apply focus:ring-accent;
+}
+
+.btn-secondary {
+  @apply bg-white text-primary border-2 border-primary hover:bg-primary/5;
+  @apply focus:ring-primary;
+}
+
+.btn-outline {
+  @apply bg-transparent text-text border-2 border-gray-300 hover:border-gray-400;
+  @apply focus:ring-gray-400;
+}
+
+/* Cards */
+.card {
+  @apply bg-white rounded-card p-6 shadow-sm;
+}
+
+/* Status colors */
+.status-novos {
+  @apply bg-blue-100 text-blue-800 border-blue-200;
+}
+
+.status-contatado {
+  @apply bg-cyan-100 text-cyan-800 border-cyan-200;
+}
+
+.status-interesse {
+  @apply bg-green-100 text-green-800 border-green-200;
+}
+
+.status-agendado {
+  @apply bg-purple-100 text-purple-800 border-purple-200;
+}
+
+/* Score badges */
+.score-ouro {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.score-prata {
+  @apply bg-gray-100 text-gray-700;
+}
+
+.score-bronze {
+  @apply bg-orange-100 text-orange-800;
+}
+
+/* Form inputs - larger for accessibility */
+.input {
+  @apply w-full min-h-[52px] px-4 py-3 text-lg;
+  @apply border-2 border-gray-200 rounded-lg;
+  @apply focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
+}
+
+.select {
+  @apply w-full min-h-[52px] px-4 py-3 text-lg;
+  @apply border-2 border-gray-200 rounded-lg bg-white;
+  @apply focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
+  @apply appearance-none cursor-pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 24px;
+  padding-right: 48px;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin rounded-full border-4 border-gray-200 border-t-accent;
+}
+
+/* Live call indicator */
+.pulse-dot {
+  @apply relative;
+}
+
+.pulse-dot::before {
+  content: '';
+  @apply absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .btn {
+    @apply w-full;
+  }
+
+  .card {
+    @apply p-4;
+  }
+}
+
+/* Custom border width */
+.border-3 {
+  border-width: 3px;
+}
+
+/* Scale utility */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+/* Text selection */
+::selection {
+  background-color: #3B82F6;
+  color: white;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94A3B8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748B;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 3px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* Skip focus for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Animation for smooth transitions */
+* {
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Disable animations for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

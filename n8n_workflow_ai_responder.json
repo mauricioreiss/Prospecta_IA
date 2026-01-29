@@ -1,0 +1,238 @@
+{
+  "name": "Prospecta IA - AI Responder",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-responder-chatwoot",
+        "options": {}
+      },
+      "id": "webhook-chatwoot",
+      "name": "Webhook Chatwoot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "ai-responder-chatwoot"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-incoming",
+              "leftValue": "={{ $json.message_type }}",
+              "rightValue": "incoming",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-message-created",
+              "leftValue": "={{ $json.event }}",
+              "rightValue": "message_created",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-incoming",
+      "name": "Filtrar Mensagens Recebidas",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"phone\": $json.conversation.contact_inbox.source_id,\n  \"message\": $json.content,\n  \"conversation_id\": $json.conversation.id,\n  \"contact_id\": $json.contact?.id,\n  \"inbox_id\": $json.inbox?.id,\n  \"sender_name\": $json.sender?.name\n} }}",
+        "options": {}
+      },
+      "id": "extract-data",
+      "name": "Extrair Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PROSPECTA_API_URL }}/api/ai-responder/process",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"phone\": $json.phone,\n  \"message\": $json.message,\n  \"conversation_id\": $json.conversation_id\n}) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-ai-responder",
+      "name": "Chamar AI Responder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-processed",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "processed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-result",
+      "name": "Verificar Resultado",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"status\": \"success\",\n  \"phone\": $json.phone,\n  \"intent\": $json.intent,\n  \"response_sent\": !!$json.ai_response,\n  \"lead_name\": $json.lead_context?.name\n} }}",
+        "options": {}
+      },
+      "id": "log-success",
+      "name": "Log Sucesso",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"status\": \"skipped\",\n  \"reason\": \"not_incoming_message\",\n  \"event\": $json.event,\n  \"message_type\": $json.message_type\n} }}",
+        "options": {}
+      },
+      "id": "log-skipped",
+      "name": "Log Ignorado",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [690, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"status\": \"no_context\",\n  \"phone\": $json.phone,\n  \"message\": $json.message || \"Lead nao encontrado na base\"\n} }}",
+        "options": {}
+      },
+      "id": "log-no-context",
+      "name": "Log Sem Contexto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1350, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Chatwoot": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Mensagens Recebidas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Mensagens Recebidas": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Ignorado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados": {
+      "main": [
+        [
+          {
+            "node": "Chamar AI Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar AI Responder": {
+      "main": [
+        [
+          {
+            "node": "Verificar Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Resultado": {
+      "main": [
+        [
+          {
+            "node": "Log Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Sem Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ai-responder-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "prospecta-ia"
+  },
+  "tags": [
+    {
+      "name": "prospecta-ia"
+    },
+    {
+      "name": "ai-responder"
+    }
+  ]
+}
