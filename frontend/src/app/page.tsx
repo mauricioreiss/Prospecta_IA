@@ -4,7 +4,7 @@ import { useApp } from '@/contexts/AppContext';
 import CampaignStarter from '@/components/CampaignStarter';
 import LiveCallCard from '@/components/LiveCallCard';
 import Link from 'next/link';
-import { BarChart3, Loader2, Zap } from 'lucide-react';
+import { BarChart3, Loader2, Target, Kanban } from 'lucide-react';
 
 export default function Home() {
   const { isLoading, error, activeCall, leadCounts } = useApp();
@@ -73,11 +73,18 @@ export default function Home() {
                 </Link>
               )}
               <Link
-                href="/reativacao"
+                href="/prospeccao-manual"
                 className="btn bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white inline-flex items-center gap-3 text-lg"
               >
-                <Zap className="w-6 h-6" />
-                Reativar Leads Antigos
+                <Target className="w-6 h-6" />
+                Prospecção Manual
+              </Link>
+              <Link
+                href="/kanban"
+                className="btn bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white inline-flex items-center gap-3 text-lg"
+              >
+                <Kanban className="w-6 h-6" />
+                Pipeline Kanban
               </Link>
             </div>
           </>

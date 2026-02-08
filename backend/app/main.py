@@ -11,7 +11,8 @@ from backend.app.api.routes import (
     campaigns_router,
     webhooks_router,
     reactivation_router,
-    ai_responder_router
+    ai_responder_router,
+    cold_prospecting_router
 )
 
 app = FastAPI(
@@ -35,6 +36,7 @@ app.include_router(campaigns_router, prefix="/api")
 app.include_router(webhooks_router, prefix="/api")
 app.include_router(reactivation_router, prefix="/api")
 app.include_router(ai_responder_router, prefix="/api")
+app.include_router(cold_prospecting_router, prefix="/api")
 
 
 @app.get("/")

@@ -198,6 +198,114 @@ export const api = {
   getReactivationTemplate: () => {
     return apiCall<{ template: string; placeholders: string[]; example: string }>('/api/reactivation/template');
   },
+
+  // Cold Prospecting (SPIN Selling)
+  previewColdProspecting: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cold-prospecting/preview`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+        return { error: error.detail || `HTTP ${response.status}` };
+      }
+
+      const data = await response.json();
+      return { data };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Network error' };
+    }
+  },
+
+  sendColdProspecting: async (leads: any[], delaySeconds: number = 45) => {
+    const formData = new FormData();
+    const minimalLeads = leads.map(l => ({ phone: l.phone, name: l.name, company: l.company || '' }));
+    formData.append('leads', JSON.stringify(minimalLeads));
+    formData.append('delay_seconds', String(delaySeconds));
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cold-prospecting/send`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Send failed' }));
+        return { error: error.detail || `HTTP ${response.status}` };
+      }
+
+      const data = await response.json();
+      return { data };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Network error' };
+    }
+  },
+
+  getColdCampaignProgress: (campaignId: string) => {
+    return apiCall<any>(`/api/cold-prospecting/campaign/${campaignId}`);
+  },
+
+  // Kanban / AI Responder
+  getKanbanData: () => {
+    return apiCall<KanbanResponse>('/api/ai-responder/kanban');
+  },
+
+  moveLeadStatus: (phone: string, newStatus: string) => {
+    return apiCall<{ status: string; phone: string; new_status: string }>(
+      `/api/ai-responder/kanban/move?phone=${encodeURIComponent(phone)}&new_status=${newStatus}`,
+      { method: 'POST' }
+    );
+  },
 };
+
+// Kanban types
+export interface KanbanLead {
+  phone: string;
+  name: string;
+  company: string;
+  campaign_id: string;
+  status: string;
+  phase: string;
+  qualification_progress: number;
+  qualification_data: {
+    equipamento?: string;
+    urgencia?: string;
+    cnpj?: string;
+    faturamento?: string;
+  };
+  salesperson_insights: string;
+  total_exchanges: number;
+  last_message: string;
+  last_message_time: string;
+  last_contact: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KanbanResponse {
+  leads: KanbanLead[];
+  columns: {
+    novo: KanbanLead[];
+    em_conversa: KanbanLead[];
+    qualificado: KanbanLead[];
+    reuniao_agendada: KanbanLead[];
+    curioso: KanbanLead[];
+    perdido: KanbanLead[];
+  };
+  summary: {
+    novo: number;
+    em_conversa: number;
+    qualificado: number;
+    reuniao_agendada: number;
+    curioso: number;
+    perdido: number;
+    total: number;
+  };
+}
 
 export default api;

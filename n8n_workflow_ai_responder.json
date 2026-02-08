@@ -1,6 +1,19 @@
 {
-  "name": "Prospecta IA - AI Responder",
+  "name": "Prospecta IA - AI Responder Filtro Hibrido",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Prospecta IA - AI Responder Filtro Hibrido\n\n**O que faz:**\nRecebe mensagens incoming do Chatwoot, envia para o Python processar com IA (Filtro Hibrido 3 fases), responde na MESMA conversa, qualifica o lead e envia link do Google Calendar quando OURO.\n\n**SETUP:**\n1. Configure webhook no Chatwoot:\n   Settings → Integrations → Webhooks\n   URL: https://seu-n8n.com/webhook/ai-responder-chatwoot\n   Events: message_created\n\n2. Configure variavel de ambiente no n8n:\n   PROSPECTA_API_URL = http://seu-backend:8000\n\n**FLUXO:**\nChatwoot msg → Filtro → Python AI → Resposta → Qualificacao → Se OURO → Envia Calendar Link\n\n**QUALIFICACAO 4 PONTOS:**\n1. Equipamento/Maquina\n2. Urgencia/Prazo\n3. CNPJ\n4. Faturamento\n4/4 = OURO → Envia Google Calendar link automaticamente",
+        "height": 420,
+        "width": 460,
+        "color": 4
+      },
+      "id": "sticky-setup",
+      "name": "Instrucoes Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 40]
+    },
     {
       "parameters": {
         "httpMethod": "POST",
@@ -11,7 +24,7 @@
       "name": "Webhook Chatwoot",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 300],
+      "position": [250, 500],
       "webhookId": "ai-responder-chatwoot"
     },
     {
@@ -24,8 +37,8 @@
           },
           "conditions": [
             {
-              "id": "condition-incoming",
-              "leftValue": "={{ $json.message_type }}",
+              "id": "cond-incoming",
+              "leftValue": "={{ $json.body.message_type }}",
               "rightValue": "incoming",
               "operator": {
                 "type": "string",
@@ -33,11 +46,29 @@
               }
             },
             {
-              "id": "condition-message-created",
-              "leftValue": "={{ $json.event }}",
+              "id": "cond-event",
+              "leftValue": "={{ $json.body.event }}",
               "rightValue": "message_created",
               "operator": {
                 "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-content",
+              "leftValue": "={{ $json.body.content }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "cond-inbox-366",
+              "leftValue": "={{ $json.body.conversation?.inbox_id || $json.body.inbox?.id }}",
+              "rightValue": 366,
+              "operator": {
+                "type": "number",
                 "operation": "equals"
               }
             }
@@ -47,39 +78,53 @@
         "options": {}
       },
       "id": "filter-incoming",
-      "name": "Filtrar Mensagens Recebidas",
+      "name": "Filtrar Msg Incoming",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2,
-      "position": [470, 300]
+      "position": [500, 500]
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ {\n  \"phone\": $json.conversation.contact_inbox.source_id,\n  \"message\": $json.content,\n  \"conversation_id\": $json.conversation.id,\n  \"contact_id\": $json.contact?.id,\n  \"inbox_id\": $json.inbox?.id,\n  \"sender_name\": $json.sender?.name\n} }}",
+        "jsonOutput": "={{ {\n  \"phone\": ($json.body.conversation?.contact_inbox?.source_id || $json.body.sender?.phone_number || '').toString().replace(/\\D/g, ''),\n  \"message\": $json.body.content || '',\n  \"conversation_id\": $json.body.conversation?.id,\n  \"inbox_id\": $json.body.conversation?.inbox_id || $json.body.inbox?.id,\n  \"sender_name\": $json.body.sender?.name || 'Lead',\n  \"chatwoot_url\": 'https://chat.byduo.com.br'\n} }}",
         "options": {}
       },
       "id": "extract-data",
       "name": "Extrair Dados",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [690, 300]
+      "position": [750, 500]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.PROSPECTA_API_URL }}/api/ai-responder/process",
+        "url": "={{ $env.PROSPECTA_API_URL || 'https://recoilingly-unperturbable-krissy.ngrok-free.dev' }}/api/ai-responder/process",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  \"phone\": $json.phone,\n  \"message\": $json.message,\n  \"conversation_id\": $json.conversation_id\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  phone: $json.phone,\n  message: $json.message,\n  conversation_id: $json.conversation_id,\n  sender_name: $json.sender_name,\n  auto_send: false\n}) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
         }
       },
-      "id": "call-ai-responder",
-      "name": "Chamar AI Responder",
+      "id": "call-python-ai",
+      "name": "Chamar Python AI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [910, 300]
+      "position": [1000, 500]
     },
     {
       "parameters": {
@@ -91,12 +136,21 @@
           },
           "conditions": [
             {
-              "id": "condition-processed",
+              "id": "cond-processed",
               "leftValue": "={{ $json.status }}",
               "rightValue": "processed",
               "operator": {
                 "type": "string",
                 "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-has-response",
+              "leftValue": "={{ $json.ai_response }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
               }
             }
           ],
@@ -105,46 +159,198 @@
         "options": {}
       },
       "id": "check-result",
-      "name": "Verificar Resultado",
+      "name": "Tem Resposta AI?",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2,
-      "position": [1130, 300]
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://chat.byduo.com.br/api/v1/accounts/1/conversations/{{ $('Extrair Dados').item.json.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  content: $('Chamar Python AI').item.json.ai_response,\n  message_type: 'outgoing'\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "send-chatwoot-response",
+      "name": "Responder no Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 500]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "seconds"
+      },
+      "id": "wait-1s",
+      "name": "Esperar 1s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1750, 500],
+      "webhookId": "wait-qualify"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PROSPECTA_API_URL || 'https://recoilingly-unperturbable-krissy.ngrok-free.dev' }}/api/ai-responder/qualify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  phone: $('Extrair Dados').item.json.phone,\n  incoming_message: $('Extrair Dados').item.json.message,\n  ai_response: $('Chamar Python AI').item.json.ai_response,\n  intent: $('Chamar Python AI').item.json.intent,\n  conversation_id: $('Extrair Dados').item.json.conversation_id\n}) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "qualify-lead",
+      "name": "Qualificar Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-ouro",
+              "leftValue": "={{ $json.should_send_calendar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-ouro",
+      "name": "Lead e Ouro?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2250, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://chat.byduo.com.br/api/v1/accounts/1/conversations/{{ $('Extrair Dados').item.json.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api_access_token",
+              "value": "1XMqgiobnqHmjrQBUHXwKYG4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  content: 'Segue o link para agendar uma conversa com nosso time comercial: https://calendar.app.google/pAYRqssNvDxde6K28\\n\\nEscolhe o melhor horario! \\ud83d\\udcc5',\n  message_type: 'outgoing'\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "send-calendar-link",
+      "name": "Enviar Link Calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2500, 400]
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ {\n  \"status\": \"success\",\n  \"phone\": $json.phone,\n  \"intent\": $json.intent,\n  \"response_sent\": !!$json.ai_response,\n  \"lead_name\": $json.lead_context?.name\n} }}",
+        "jsonOutput": "={{ {\n  \"status\": \"ouro_calendar_sent\",\n  \"phone\": $('Extrair Dados').item.json.phone,\n  \"sender\": $('Extrair Dados').item.json.sender_name,\n  \"phase\": $('Qualificar Lead').item.json.phase || 'ouro',\n  \"qualification_progress\": $('Qualificar Lead').item.json.qualification_progress || 4,\n  \"qualification_data\": $('Qualificar Lead').item.json.qualification_data || {},\n  \"salesperson_insights\": $('Qualificar Lead').item.json.salesperson_insights || '',\n  \"calendar_link_sent\": true\n} }}",
+        "options": {}
+      },
+      "id": "log-ouro",
+      "name": "Log Ouro + Calendar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2750, 400]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  \"status\": \"qualified\",\n  \"phone\": $('Extrair Dados').item.json.phone,\n  \"sender\": $('Extrair Dados').item.json.sender_name,\n  \"intent\": $('Chamar Python AI').item.json.intent,\n  \"phase\": $json.phase || 'unknown',\n  \"qualification_progress\": $json.qualification_progress || 0,\n  \"qualification_data\": $json.qualification_data || {},\n  \"missing_data\": $json.missing_data || [],\n  \"salesperson_insights\": $json.salesperson_insights || '',\n  \"is_ouro\": $json.is_ouro || false\n} }}",
         "options": {}
       },
       "id": "log-success",
-      "name": "Log Sucesso",
+      "name": "Log Qualificacao",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1350, 300]
+      "position": [2500, 620]
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ {\n  \"status\": \"skipped\",\n  \"reason\": \"not_incoming_message\",\n  \"event\": $json.event,\n  \"message_type\": $json.message_type\n} }}",
+        "jsonOutput": "={{ {\n  \"status\": \"ignored\",\n  \"reason\": \"not_incoming_or_empty\",\n  \"event\": $json.body?.event || 'unknown',\n  \"message_type\": $json.body?.message_type || 'unknown'\n} }}",
         "options": {}
       },
-      "id": "log-skipped",
+      "id": "log-ignored",
       "name": "Log Ignorado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [690, 500]
+      "position": [750, 720]
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ {\n  \"status\": \"no_context\",\n  \"phone\": $json.phone,\n  \"message\": $json.message || \"Lead nao encontrado na base\"\n} }}",
+        "jsonOutput": "={{ {\n  \"status\": \"no_context_or_error\",\n  \"phone\": $('Extrair Dados').item.json.phone,\n  \"python_status\": $json.status || 'error',\n  \"python_message\": $json.message || 'Lead nao encontrado'\n} }}",
         "options": {}
       },
       "id": "log-no-context",
       "name": "Log Sem Contexto",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1350, 500]
+      "position": [1500, 720]
     }
   ],
   "connections": {
@@ -152,14 +358,14 @@
       "main": [
         [
           {
-            "node": "Filtrar Mensagens Recebidas",
+            "node": "Filtrar Msg Incoming",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filtrar Mensagens Recebidas": {
+    "Filtrar Msg Incoming": {
       "main": [
         [
           {
@@ -181,29 +387,29 @@
       "main": [
         [
           {
-            "node": "Chamar AI Responder",
+            "node": "Chamar Python AI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Chamar AI Responder": {
+    "Chamar Python AI": {
       "main": [
         [
           {
-            "node": "Verificar Resultado",
+            "node": "Tem Resposta AI?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Verificar Resultado": {
+    "Tem Resposta AI?": {
       "main": [
         [
           {
-            "node": "Log Sucesso",
+            "node": "Responder no Chatwoot",
             "type": "main",
             "index": 0
           }
@@ -216,13 +422,75 @@
           }
         ]
       ]
+    },
+    "Responder no Chatwoot": {
+      "main": [
+        [
+          {
+            "node": "Esperar 1s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 1s": {
+      "main": [
+        [
+          {
+            "node": "Qualificar Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualificar Lead": {
+      "main": [
+        [
+          {
+            "node": "Lead e Ouro?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead e Ouro?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Link Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Qualificacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Link Calendar": {
+      "main": [
+        [
+          {
+            "node": "Log Ouro + Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "ai-responder-v1",
+  "versionId": "ai-responder-filtro-hibrido-v1",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "prospecta-ia"
@@ -233,6 +501,9 @@
     },
     {
       "name": "ai-responder"
+    },
+    {
+      "name": "filtro-hibrido"
     }
   ]
 }
